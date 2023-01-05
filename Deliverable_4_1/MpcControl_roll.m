@@ -1,4 +1,4 @@
-classdef MpcControl_x < MpcControlBase
+classdef MpcControl_roll < MpcControlBase
     
     methods
         % Design a YALMIP optimizer object that takes a steady-state state
@@ -11,14 +11,14 @@ classdef MpcControl_x < MpcControlBase
             %   x_ref, u_ref - reference state/input
             % OUTPUTS
             %   U(:,1)       - input to apply to the system
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             N_segs = ceil(H/Ts); % Horizon steps
             N = N_segs + 1;      % Last index in 1-based Matlab indexing
-
+            
             [nx, nu] = size(mpc.B);
             
-            % Targets (Ignore this before Todo 3.2)
+            % Steady-state targets (Ignore this before Todo 3.2)
             x_ref = sdpvar(nx, 1);
             u_ref = sdpvar(nu, 1);
             
@@ -32,75 +32,51 @@ classdef MpcControl_x < MpcControlBase
             % NOTE: The matrices mpc.A, mpc.B, mpc.C and mpc.D are
             %       the DISCRETE-TIME MODEL of your system
             
-            obj = 0;
-            con = [];
-
-            % State Constraints 
-            F = [0 1 0 0; 0 -1 0 0];  % constraints on the Euler angle beta
-            f = [0.0873; 0.0873];
-
-            % Input constarints 
-            M = [1; -1];
-            m = [0.26; 0.26];          % constraints on the deflexion angle sigma 2
-
-            % System dynamics 
-            A = mpc.A; 
+            % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
+            epsi = sdpvar(nx, N-1);
+            A = mpc.A;
             B = mpc.B;
-            C = mpc.C;
-            D = mpc.D;
-
-            % Cost matrices 
-            Q = diag ([1 5 1 1]);
-            R =  1;
-
-            % LQR controller for unconstrained system
-            [K, Qf, ~] = dlqr(A,B,Q,R);
-            K = -K;      % MATLAB defines K as -K 
-
-            % Compute the maximal invariant set 
-            Xf = polytope([F;M*K],[f;m]);
-            Acl = [A+B*K];      % Closed loop 
-            while 1
-                prevXf = Xf;
-                [T,t] = double(Xf);
-                preXf = polytope(T*Acl,t);
-                Xf = intersect(Xf, preXf);
-                if isequal(prevXf, Xf)
-                    break
-                end
+            sys = LTISystem('A',A,'B',B);
+            Q = diag([25, 10]);
+            R = eye(nu)*0.001;
+            us = 0;
+            umax = 20 - us;
+            umin = -20 - us;
+            xmax = [inf; inf];
+            xmin = -xmax;
+            sys.x.penalty = QuadFunction(Q); 
+            sys.u.penalty = QuadFunction(R);
+            sys.x.min = xmin; 
+            sys.x.max = xmax;
+            sys.u.min = umin; 
+            sys.u.max = umax;
+%             Xf = sys.LQRSet;
+            Qf = sys.LQRPenalty.weight;
+            % terminal set and cost
+            sys.x.with('terminalPenalty');
+            sys.x.terminalPenalty = QuadFunction(Qf);
+%             sys.x.with('terminalSet');
+%             sys.x.terminalSet = Xf;
+            % Constraints
+            % u in U = { u | Mu <= m }
+            M = [eye(nu);-eye(nu)]; m = [umax; -umin];
+            % x in X = { x | Fx <= f }
+%             F = [eye(nx); -eye(nx)]; f = [xmax;-xmin];
+            S = eye(nx)*5;
+            con = (X(:,2)-x_ref == A*(X(:,1)-x_ref) + B*(U(:,1)-u_ref)) + (M*U(:,1) <= m);
+            obj = (U(:,1)-u_ref)'*R*(U(:,1)-u_ref);
+            for i = 2:N-1
+                F = [eye(nx); -eye(nx)]; f = [xmax;xmax]+[epsi(:,i);epsi(:,i)];
+                con = con + (X(:,i+1)-x_ref == A*(X(:,i)-x_ref) + B*(U(:,i)-u_ref));
+                con = con + (F*X(:,i) <= f) + (M*U(:,i) <= m);
+                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref) + epsi(:,i)'*S*epsi(:,i)+5*norm(epsi(:,i), 1);
             end
-           [Ff,ff] = double(Xf);
-           % Visualizing the sets
-           figure('Name', 'Set X');
-           hold on; grid on;
-           plot(Xf.projection(1:2),'r');
-           xlabel('w_y [rad/s]','interpreter','tex'); 
-           ylabel('\beta [rad]','interpreter','tex');
-
-           figure(2)
-           hold on; grid on;
-           plot(Xf.projection(2:3),'r');
-           xlabel('\beta [rad]','interpreter','tex'); 
-           ylabel('v_x [m/s]','interpreter','tex');
-
-           figure(3)
-           hold on; grid on;
-           plot(Xf.projection(3:4),'r');
-           xlabel('v_x [m/s]','interpreter','tex'); 
-           ylabel('x [m]','interpreter','tex');  
-
-           % Objective function and constrains 
-          
-           for i = 1:N-1
-              con = con + ( X(:,i+1) == A*X(:,i) + B*U(:,i) );
-              con = con + ( F*X(:,i) <= f) + (M*U(:,i) <= m );
-              obj = obj + X(:,i)'*Q*X(:,i) + U(:,i)'*R*U(:,i) ;
-           end
-      
-           con = con + (Ff*X(:,N) <= ff);
-           obj = obj + X(:,N)'*Qf*X(:,N);
-
-
+%             con = con + (Xf.A*X(:,N) <= Xf.b);
+            obj = obj + (X(:,N)-x_ref)'*Qf*(X(:,N)-x_ref);
+%             %Plot terminal set
+%             figure;
+%             Xf.projection(1:2).plot();
+%             title('Terminal set of Controller X projected onto (1,2)')
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -121,9 +97,8 @@ classdef MpcControl_x < MpcControlBase
             %   xs, us - steady-state target
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
-            nx = size(mpc.A, 1);
-
             % Steady-state targets
+            nx = size(mpc.A, 1);
             xs = sdpvar(nx, 1);
             us = sdpvar;
             
@@ -133,8 +108,18 @@ classdef MpcControl_x < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            obj = 0;
-            con = [xs == 0, us == 0];
+            A = mpc.A; B = mpc.B; C = mpc.C; D = mpc.D;
+            u = 0;
+            umax = 20 - u;
+            umin = -20 - u;
+            xmax = [inf; inf];
+            F = [eye(nx); -eye(nx)];
+            f = [xmax; xmax];
+            M = [1; -1];
+            m = [umax; -umin];
+            con = [xs == A*xs + B*us, ref == C*xs + D*us, F*xs <= f, M*us <= m];
+            obj = us'*us;  
+  
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

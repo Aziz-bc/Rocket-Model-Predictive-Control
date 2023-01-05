@@ -1,4 +1,5 @@
 addpath ('C:\Users\User\Desktop\Kraya\casadi-windows-matlabR2016a-v3.5.5')
+
 %% Part 1 
 %Todo1.1
 d1=Rocket.indu.d1;

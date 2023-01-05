@@ -49,7 +49,7 @@ ph = rocket.plotvis_sub(T, X_sub, U_sub, sys_y, xs, us, y_ref);
 sgtitle("MPC controller for Y closed-loop");
 %% MPC controller for z
 H = 2;          % Horizon length in seconds
-mpc_z = MpcControl_z(sys_z, Ts, H);
+mpc_z = MpcControl_y(sys_z, Ts, H);
 
 % Initial Position x
 z0 = [0 ; 0];
@@ -66,22 +66,8 @@ sgtitle("MPC controller for Z open-loop");
 [T, X_sub, U_sub] = rocket.simulate_f(sys_z, z0, Tf, @mpc_z.get_u, z_ref);
 ph = rocket.plotvis_sub(T, X_sub, U_sub, sys_z, xs, us, z_ref);
 sgtitle("MPC controller for Z closed-loop");
-%% MPC controller for roll
-H = 0.2;          % Horizon length in seconds
-mpc_roll = MpcControl_roll(sys_roll, Ts, H);
-
-% Initial angle 
-roll0 = [0 ; 0];
-% Reference Position x
-roll_ref = deg2rad(35); 
-
-% Open loop
-[u, T_opt, X_opt, U_opt] = mpc_roll.get_u(roll0, roll_ref);
-U_opt(:,end+1) = nan;
-ph = rocket.plotvis_sub(T_opt, X_opt, U_opt, sys_roll, xs, us, roll_ref); % Plot as usual
-sgtitle("MPC controller for roll open-loop");
-
-% Closed loop
-[T, X_sub, U_sub] = rocket.simulate_f(sys_roll, roll0, Tf, @mpc_roll.get_u, roll_ref);
-ph = rocket.plotvis_sub(T, X_sub, U_sub, sys_roll, xs, us, roll_ref);
-sgtitle("MPC controller for roll closed-loop");
+%% 
+mpc_r = MpcControl_roll(sys_roll, Ts, H);
+r_ref = deg2rad(35);  
+[T, R_sub, U_sub] = rocket.simulate_f(sys_roll, x0(x_indexes_list{4}), Tf, @mpc_r.get_u, r_ref);
+ph_r = rocket.plotvis_sub(T, R_sub, U_sub, sys_roll, xs, us, r_ref);
