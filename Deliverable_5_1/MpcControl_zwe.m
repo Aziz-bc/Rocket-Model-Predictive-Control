@@ -1,6 +1,16 @@
-classdef MpcControl_x < MpcControlBase
+classdef MpcControl_zwe < MpcControlBase
+    properties
+        A_bar, B_bar, C_bar % Augmented system for disturbance rejection
+        L                   % Estimator gain for disturbance rejection
+    end
     
     methods
+        function mpc = MpcControl_zwe(sys, Ts, H)
+            mpc = mpc@MpcControlBase(sys, Ts, H);
+            
+            [mpc.A_bar, mpc.B_bar, mpc.C_bar, mpc.L] = mpc.setup_estimator();
+        end
+        
         % Design a YALMIP optimizer object that takes a steady-state state
         % and input (xs, us) and returns a control input
         function ctrl_opti = setup_controller(mpc, Ts, H)
@@ -8,41 +18,46 @@ classdef MpcControl_x < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % INPUTS
             %   X(:,1)       - initial state (estimate)
+            %   d_est        - disturbance estimate
             %   x_ref, u_ref - reference state/input
             % OUTPUTS
             %   U(:,1)       - input to apply to the system
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             N_segs = ceil(H/Ts); % Horizon steps
             N = N_segs + 1;      % Last index in 1-based Matlab indexing
-
+            
             [nx, nu] = size(mpc.B);
             
-            % Targets (Ignore this before Todo 3.2)
+            % Targets (Ignore this before Todo 3.3)
             x_ref = sdpvar(nx, 1);
             u_ref = sdpvar(nu, 1);
+            
+            % Disturbance estimate (Ignore this before Part 5)
+            d_est = sdpvar(1);
             
             % Predicted state and input trajectories
             X = sdpvar(nx, N);
             U = sdpvar(nu, N-1);
             
- %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+           %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             
             % NOTE: The matrices mpc.A, mpc.B, mpc.C and mpc.D are
             %       the DISCRETE-TIME MODEL of your system
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
-            epsi = sdpvar(nx, N-1);
+            epsi = sdpvar(nx, N-1);            
             A = mpc.A;
             B = mpc.B;
             sys = LTISystem('A',A,'B',B);
-            Q = diag([25, 10, 10,  70]);
+            Q = diag([35,100]);
             R = eye(nu)*0.001;
-            us = 0;
-            umax = deg2rad(15) - us;
-            umin = -umax - us;
-            xmax = [inf; deg2rad(7); inf; inf];
+            us = 56.6667;
+            % u* = u - us
+            umax = 80 - us;
+            umin = 50 - us;
+            xmax = [inf; inf];
             xmin = -xmax;
             sys.x.penalty = QuadFunction(Q); 
             sys.u.penalty = QuadFunction(R);
@@ -59,18 +74,17 @@ classdef MpcControl_x < MpcControlBase
 %             sys.x.terminalSet = Xf;
             % Constraints
             % u in U = { u | Mu <= m }
-            M = [eye(nu);-eye(nu)]; m = [umax; umax];
+            M = [eye(nu);-eye(nu)]; m = [umax; -umin];
             % x in X = { x | Fx <= f }
-%             F = [eye(nx); -eye(nx)]; f = [xmax;xmax];
+%             F = [eye(nx); -eye(nx)]; f = [xmax;-xmin];
             S = eye(nx)*5;
-            con = (X(:,2) == A*(X(:,1)) + B*(U(:,1))) + (M*U(:,1) <= m);
-            obj = (U(:,1)-u_ref)'*R*(U(:,1)-u_ref);
+            con = (X(:,2) == A*(X(:,1)) + B*(U(:,1))+B*d_est) + (M*U(:,1) <= m);
+            obj = (X(:,1)-x_ref)'*Q*(X(:,1)-x_ref)+(U(:,1)-u_ref)'*R*(U(:,1)-u_ref);
             for i = 2:N-1
                 F = [eye(nx); -eye(nx)]; f = [xmax;xmax]+[epsi(:,i);epsi(:,i)];
                 con = con + (X(:,i+1) == A*(X(:,i)) + B*(U(:,i)));
                 con = con + (F*X(:,i) <= f) + (M*U(:,i) <= m);
-                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref) + epsi(:,i)'*S*epsi(:,i)+5*norm(epsi(:,i), 1);
-%                 obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref);
+                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref)+ epsi(:,i)'*S*epsi(:,i)+5*norm(epsi(:,i), 1);
             end
 %             con = con + (Xf.A*X(:,N) <= Xf.b);
             obj = obj + (X(:,N)-x_ref)'*Qf*(X(:,N)-x_ref);
@@ -78,23 +92,16 @@ classdef MpcControl_x < MpcControlBase
 %             figure;
 %             Xf.projection(1:2).plot();
 %             title('Terminal set of Controller X projected onto (1,2)')
-%             figure;
-%             Xf.projection(2:3).plot();
-%             title('Terminal set of Controller X projected onto (2,3)')
-%             figure;
-%             Xf.projection(3:4).plot();
-%             title('Terminal set of Controller X projected onto (3,4)')
+
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             % Return YALMIP optimizer object
             ctrl_opti = optimizer(con, obj, sdpsettings('solver','gurobi'), ...
-                {X(:,1), x_ref, u_ref}, {U(:,1), X, U});
-%             ctrl_opti = optimizer(con, obj, sdpsettings('solver','gurobi'), ...
-%                 {X(:,1), x_ref, u_ref}, {U(:,1), X, U});
-
+                {X(:,1), x_ref, u_ref, d_est}, {U(:,1), X, U});
         end
+        
         
         % Design a YALMIP optimizer object that takes a position reference
         % and returns a feasible steady-state state and input (xs, us)
@@ -103,36 +110,69 @@ classdef MpcControl_x < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % INPUTS
             %   ref    - reference to track
+            %   d_est  - disturbance estimate
             % OUTPUTS
             %   xs, us - steady-state target
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             nx = size(mpc.A, 1);
-
+            
             % Steady-state targets
             xs = sdpvar(nx, 1);
             us = sdpvar;
             
-            % Reference position (Ignore this before Todo 3.2)
+            % Reference position (Ignore this before Todo 3.3)
             ref = sdpvar;
+            
+            % Disturbance estimate (Ignore this before Part 5)
+            d_est = sdpvar;
             
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
             A = mpc.A; B = mpc.B; C = mpc.C; D = mpc.D;
-            umax = deg2rad(15);
-            xmax = [inf; deg2rad(7); inf; inf];
+            u = 56.6667;
+            umax = 80 - u;
+            umin = 50 - u;
+            xmax = [inf; inf];
             F = [eye(nx); -eye(nx)];
             f = [xmax; xmax];
             M = [1; -1];
-            m = [umax; umax];
-            con = [xs == A*xs + B*us, ref == C*xs + D*us, F*xs <= f, M*us <= m];
-            obj = us'*us;           
+            m = [umax; -umin];
+            con = [xs == A*xs + B*us+ mpc.B*d_est, ref == C*xs + D*us, F*xs <= f, M*us <= m];
+            obj = us'*us;  
+            
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             % Compute the steady-state target
-            target_opti = optimizer(con, obj, sdpsettings('solver', 'gurobi'), ref, {xs, us});
+            target_opti = optimizer(con, obj, sdpsettings('solver', 'gurobi'), {ref, d_est}, {xs, us});
         end
+        
+        
+        % Compute augmented system and estimator gain for input disturbance rejection
+        function [A_bar, B_bar, C_bar, L] = setup_estimator(mpc)
+            
+            %%% Design the matrices A_bar, B_bar, L, and C_bar
+            %%% so that the estimate x_bar_next [ x_hat; disturbance_hat ]
+            %%% converges to the correct state and constant input disturbance
+            %%%   x_bar_next = A_bar * x_bar + B_bar * u + L * (C_bar * x_bar - y);
+            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
+            % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
+            
+            A_bar = [mpc.A, mpc.B; zeros(1,size(mpc.A,2)), 1] ;
+            B_bar = [mpc.B; zeros(1,size(mpc.B,2))] ;
+            C_bar = [mpc.C, zeros(size(mpc.C,1))] ;
+
+            p = [0.1, 0.2, 0.3] ;
+            L = - place(A_bar',C_bar',p)' ; 
+            
+            % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        end
+        
+        
     end
 end
