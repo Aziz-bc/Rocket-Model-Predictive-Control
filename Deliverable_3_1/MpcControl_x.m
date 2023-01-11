@@ -35,13 +35,11 @@ classdef MpcControl_x < MpcControlBase
             obj = 0;
             con = [];
 
-            % State Constraints 
-            F = [0 1 0 0; 0 -1 0 0];  % constraints on the Euler angle beta
-            f = [0.0873; 0.0873];
-
-            % Input constarints 
-            M = [1; -1];
-            m = [0.26; 0.26];          % constraints on the deflexion angle sigma 2
+            % u in U = { u | Mu <= m }
+            M = [1;-1]; m = [0.26; 0.26];
+            % x in X = { x | Fx <= f }
+            F = [1 0 0 0; 0 1 0 0; 0 0 1 0; 0 0 0 1; -1 0 0 0; 0 -1 0 0; 0 0 -1 0; 0 0 0 -1];
+            f = [inf; 0.1222; inf; inf; inf; 0.1222; inf; inf];
 
             % System dynamics 
             A = mpc.A; 

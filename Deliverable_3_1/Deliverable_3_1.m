@@ -1,5 +1,7 @@
 addpath(fullfile('..', 'src'));
-
+clc
+clear all
+close all
 %% TODO: This file should produce all the plots for the deliverable
 
 Ts = 1/20; % Sample time
@@ -8,12 +10,11 @@ rocket = Rocket(Ts);
 sys = rocket.linearize(xs, us);
 [sys_x, sys_y, sys_z, sys_roll] = rocket.decompose(sys, xs, us);
 
-% Design MPC controller
-H = 3; % Horizon length in seconds
-%x_indexes_list = {[2,5,7,10], [1,4,8,11], [9,12], [3,6]};                  
+% Design MPC controller                 
 Tf = 10;
 
 %% MPC controller for x
+H = 3;  % Horizon length in seconds
 mpc_x = MpcControl_x(sys_x, Ts, H);
 
 % Initial x
@@ -32,6 +33,7 @@ sgtitle("MPC controller for X closed-loop");
 
 
 %% MPC controller for Y
+H = 3; % Horizon length in seconds
 mpc_y = MpcControl_y(sys_y, Ts, H);
 
 % Initial y
@@ -49,6 +51,7 @@ ph = rocket.plotvis_sub(T, X_sub, U_sub, sys_x, xs, us);
 sgtitle("MPC controller for Y closed-loop");
 
 %% MPC controller for Z
+H = 2;  % Horizon length in seconds
 mpc_z = MpcControl_z(sys_z, Ts, H);
 
 % Initial z
@@ -65,6 +68,7 @@ sgtitle("MPC controller for Z open-loop");
 ph = rocket.plotvis_sub(T, X_sub, U_sub, sys_z, xs, us);
 sgtitle("MPC controller for Z closed-loop");
 %% MPC controller for roll
+H = 0.2; % Horizon length in seconds
 mpc_roll = MpcControl_roll(sys_roll, Ts, H);
 
 % Initial angle

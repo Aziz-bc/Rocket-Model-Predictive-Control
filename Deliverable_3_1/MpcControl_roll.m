@@ -28,40 +28,64 @@ classdef MpcControl_roll < MpcControlBase
             
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-
+            obj = 0;
+            con = [];
+            
             % u in U = { u | Mu <= m }
-            M = [1;-1]; m = [0.26; 0.26];
+            M = [1;-1]; m = [20; 20];
             % x in X = { x | Fx <= f }
-            F = [1 0; 0 1; -1 0; 0 -1];
+            F = [ eye(2); -eye(2)]; 
             f = [inf; inf; inf; inf];
             
-            % Calculate the terminal set using MPT
-            Q = N * eye(2);
-            R = 1;
-            sys = LTISystem('A', mpc.A, 'B', mpc.B);
-            sys.x.min = -[inf; inf]; sys.x.max = [inf; inf];
-            sys.u.min = -0.26; sys.u.max = 0.26;
-            sys.x.penalty = QuadFunction(Q);
-            sys.u.penalty = QuadFunction(R);
+            % System dynamics
+            A = mpc.A;
+            B = mpc.B;
+            C = mpc.C;
+            D = mpc.D;
             
-            F_mpt = sys.LQRSet;
-            P_mpt = sys.LQRPenalty.weight;
-
-            % NOTE: The matrices mpc.A, mpc.B, mpc.C and mpc.D are
-            %       the DISCRETE-TIME MODEL of your system
+            % Cost matrices
+            Q = diag([1 100]);
+            R = 1;
+            
+            % LQR controller for unconstrained system
+            [K, Qf, ~] = dlqr(A,B,Q,R);
+            K = -K;      % MATLAB defines K as -K
+                        
+            % Compute the maximal invariant set
+            Xf = polytope([F;M*K],[f;m]);
+            Acl = [A+B*K];      % Closed loop
+            
+            while 1
+                prevXf = Xf;
+                [T,t] = double(Xf);
+                preXf = polytope(T*Acl,t);
+                Xf = intersect(Xf, preXf);
+                if isequal(prevXf, Xf)
+                    break
+                end
+            end
+            [Ff,ff] = double(Xf);
+            % Visualizing the sets
+            figure(1)
+            hold on; grid on;
+            plot(Xf,'purple');
+            xlabel('\omega_z [rad/s]','interpreter','tex');
+            ylabel('\gamma [rad]','interpreter','tex');
+            
+            % Objective function and constrains
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
-            obj = U(:,1)'* R *U(:,1);
-            con = X(:,2) == mpc.A * X(:,1) + mpc.B * U(:,1);
-            con = [con, M * U(:,1) <= m];
-
-            for i = 2:N-1
-                con = [con, (X(:,i+1) == mpc.A * X(:,i) + mpc.B * U(:,i))];
-                con = [con, (F * X(:,i) <= f) + (M * U(:,i) <= m)];
+            obj = 0;
+            con = [];
+            
+            for i = 1:N-1
+                con = [con, X(:,i+1) == A*X(:,i) + B*U(:,i)];
+                con = [con, F*X(:,i) <= f, M*U(:,i) <= m];
                 obj = obj + X(:,i)'*Q*X(:,i) + U(:,i)'*R*U(:,i);
             end
-            con = [con, F_mpt.A*X(:,N) <= F_mpt.b];
-            obj = obj + X(:,N)'*P_mpt*X(:,N);
+            
+            con = [con, Ff*X(:,N) <= ff];
+            obj = obj + X(:,N)'*Qf*X(:,N);
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
