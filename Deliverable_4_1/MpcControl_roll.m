@@ -48,8 +48,8 @@ classdef MpcControl_roll < MpcControlBase
             m = [20;20]; 
              
             % Cost matrices 
-            Q = diag([100, 10000]); 
-            R = 1; 
+            Q = diag([80, 6000]); 
+            R = 5; 
 
             
             % OBJECTIVE and CONSTRAINTS 

@@ -45,8 +45,8 @@ classdef MpcControl_y < MpcControlBase
             m = [deg2rad(15);deg2rad(15)]; 
              
             % Cost matrices 
-            Q = diag([5,10,10,100]);
-            R = 1000;
+            Q = diag([10,20,20,150]);
+            R = 800;
 
             
             % OBJECTIVE and CONSTRAINTS 

@@ -45,8 +45,8 @@ classdef MpcControl_x < MpcControlBase
             m = [deg2rad(15);deg2rad(15)]; 
             
             % Cost matrices 
-            Q = diag([10,20,20,150]);
-            R = 800;
+            Q = diag([10,50,10,100]);
+            R = 50;
 
             
              
