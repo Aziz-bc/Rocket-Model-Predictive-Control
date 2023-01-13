@@ -60,7 +60,7 @@ classdef MpcControl_z < MpcControlBase
             D = mpc.D;
 
             % Cost matrices 
-            Q = diag([1 50]);
+            Q = diag([5 100]);
             R = 1;
 
             % LQR controller for unconstrained system
@@ -80,6 +80,7 @@ classdef MpcControl_z < MpcControlBase
                 end
             end
            [Ff,ff] = double(Xf);
+           
            % Visualizing the sets
            figure(1)
            hold on; grid on;

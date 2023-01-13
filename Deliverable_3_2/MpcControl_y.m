@@ -33,53 +33,54 @@ classdef MpcControl_y < MpcControlBase
             %       the DISCRETE-TIME MODEL of your system
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
-            A = mpc.A;
+            obj = 0;
+            con = [];
+            
+            % State Constraints 
+            F = [eye(4); -eye(4)];
+            f = [inf; deg2rad(7); inf; inf; inf; deg2rad(7); inf; inf];
+
+            % Input constarints 
+            M = [1; -1];
+            m = [deg2rad(15);deg2rad(15)];          % constraints on the deflexion angle sigma 2
+            
+            % System dynamics 
+            A = mpc.A; 
             B = mpc.B;
-            sys = LTISystem('A',A,'B',B);
-            Q = 10 * eye(nx);
-            R = eye(nu);
-            us = 0;
-            umax = deg2rad(15) - us;
-            umin = -umax - us;
-            xmax = [inf; deg2rad(7); inf; inf];
-            xmin = -xmax;
-            sys.x.penalty = QuadFunction(Q); 
-            sys.u.penalty = QuadFunction(R);
-            sys.x.min = xmin; 
-            sys.x.max = xmax;
-            sys.u.min = umin; 
-            sys.u.max = umax;
-%             Xf = sys.LQRSet;
-            Qf = sys.LQRPenalty.weight;
-            % terminal set and cost
-            sys.x.with('terminalPenalty');
-            sys.x.terminalPenalty = QuadFunction(Qf);
-%             sys.x.with('terminalSet');
-%             sys.x.terminalSet = Xf;
-            % Constraints
-            % u in U = { u | Mu <= m }
-            M = [eye(nu);-eye(nu)]; m = [umax; umax];
-            % x in X = { x | Fx <= f }
-            F = [eye(nx); -eye(nx)]; f = [xmax;xmax];
-            con = (X(:,2)-x_ref == A*(X(:,1)-x_ref) + B*(U(:,1)-u_ref)) + (M*U(:,1) <= m);
-            obj = (U(:,1)-u_ref)'*R*(U(:,1)-u_ref);
-            for i = 2:N-1
-                con = con + (X(:,i+1)-x_ref == A*(X(:,i)-x_ref) + B*(U(:,i)-u_ref));
-                con = con + (F*X(:,i) <= f) + (M*U(:,i) <= m);
-                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref);
+            C = mpc.C;
+            D = mpc.D;
+            
+            % Cost matrices 
+            Q = diag ([1 5 1 1]);
+            R = 1;
+            % LQR controller for unconstrained system
+            [K, Qf, ~] = dlqr(A,B,Q,R);
+            K = -K;      % MATLAB defines K as -K 
+
+            % Compute the maximal invariant set 
+            Xf = polytope([F;M*K],[f;m]);
+            Acl = [A+B*K];      % Closed loop 
+            while 1
+                prevXf = Xf;
+                [T,t] = double(Xf);
+                preXf = polytope(T*Acl,t);
+                Xf = intersect(Xf, preXf);
+                if isequal(prevXf, Xf)
+                    break
+                end
             end
-%             con = con + (Xf.A*X(:,N) <= Xf.b);
-            obj = obj + (X(:,N)-x_ref)'*Qf*(X(:,N)-x_ref);
-%             %Plot terminal set
-%             figure;
-%             Xf.projection(1:2).plot();
-%             title('Terminal set of Controller X projected onto (1,2)')
-%             figure;
-%             Xf.projection(2:3).plot();
-%             title('Terminal set of Controller X projected onto (2,3)')
-%             figure;
-%             Xf.projection(3:4).plot();
-%             title('Terminal set of Controller X projected onto (3,4)')
+           [Ff,ff] = double(Xf);  
+           
+           % Objective function and constrains 
+          
+           for i = 1:N-1
+              con = con + ( X(:,i+1) == A*X(:,i) + B*U(:,i) );
+              con = con + ( F*X(:,i) <= f) + (M*U(:,i) <= m );
+              obj = obj + (X(:,i) - x_ref)'*Q*(X(:,i) - x_ref) + (U(:,i) - u_ref)'*R*(U(:,i) - u_ref) ;
+           end
+      
+           con = con + (Ff*( X(:,N) - x_ref ) <= ff);
+           obj = obj + (X(:,N) - x_ref )'*Qf*(X(:,N) - x_ref);
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -112,15 +113,25 @@ classdef MpcControl_y < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            A = mpc.A; B = mpc.B; C = mpc.C; D = mpc.D;
-            umax = deg2rad(15);
-            xmax = [inf; deg2rad(7); inf; inf];
-            F = [eye(nx); -eye(nx)];
-            f = [xmax; xmax];
+            obj = 0;
+            con = [xs == 0, us == 0];
+            
+            % State Constraints 
+            F = [eye(4); -eye(4)];
+            f = [inf; deg2rad(7); inf; inf; inf; deg2rad(7); inf; inf];
+
+            % Input constarints 
             M = [1; -1];
-            m = [umax; umax];
+            m = [deg2rad(15);deg2rad(15)];          % constraints on the deflexion angle sigma 2
+            
+            % System dynamics 
+            A = mpc.A; 
+            B = mpc.B;
+            C = mpc.C;
+            D = mpc.D;
+            
             con = [xs == A*xs + B*us, ref == C*xs + D*us, F*xs <= f, M*us <= m];
-            obj = us'*us;  
+            obj = us'*us;
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

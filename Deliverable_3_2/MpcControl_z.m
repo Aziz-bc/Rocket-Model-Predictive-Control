@@ -47,48 +47,52 @@ classdef MpcControl_z < MpcControlBase
             %       the DISCRETE-TIME MODEL of your system
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
-            A = mpc.A;
-            B = mpc.B;
-            sys = LTISystem('A',A,'B',B);
-            Q = eye(nx)*10;
-            R = eye(nu);
-            us = 56.6667;
-            % u* = u - us
-            umax = 80 - us;
-            umin = 50 - us;
-            xmax = [inf; inf];
-            xmin = -xmax;
-            sys.x.penalty = QuadFunction(Q); 
-            sys.u.penalty = QuadFunction(R);
-            sys.x.min = xmin; 
-            sys.x.max = xmax;
-            sys.u.min = umin; 
-            sys.u.max = umax;
-%             Xf = sys.LQRSet;
-            Qf = sys.LQRPenalty.weight;
-            % terminal set and cost
-            sys.x.with('terminalPenalty');
-            sys.x.terminalPenalty = QuadFunction(Qf);
-%             sys.x.with('terminalSet');
-%             sys.x.terminalSet = Xf;
-            % Constraints
+            obj = 0;
+            con = [];
+            
+            us=56.67;
             % u in U = { u | Mu <= m }
-            M = [eye(nu);-eye(nu)]; m = [umax; -umin];
+            M = [1;-1]; m = [80-us; -50+us];
+            
             % x in X = { x | Fx <= f }
-            F = [eye(nx); -eye(nx)]; f = [xmax;-xmin];
-            con = (X(:,2)-x_ref == A*(X(:,1)-x_ref) + B*(U(:,1)-u_ref)) + (M*U(:,1) <= m);
-            obj = (U(:,1)-u_ref)'*R*(U(:,1)-u_ref);
-            for i = 2:N-1
-                con = con + (X(:,i+1)-x_ref == A*(X(:,i)-x_ref) + B*(U(:,i)-u_ref));
-                con = con + (F*X(:,i) <= f) + (M*U(:,i) <= m);
-                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref);
+            F = [ eye(2); -eye(2)]; 
+            f = [inf; inf; inf; inf];
+            
+            % System dynamics 
+            A = mpc.A; 
+            B = mpc.B;
+            C = mpc.C;
+            D = mpc.D;
+
+            % Cost matrices 
+            Q = diag([1 50]);
+            R = 1;
+
+            % LQR controller for unconstrained system
+            [K, Qf, ~] = dlqr(A,B,Q,R);
+            K = -K;      % MATLAB defines K as -K 
+
+            % Compute the maximal invariant set 
+            Xf = polytope([F;M*K],[f;m]);
+            Acl = [A+B*K];      % Closed loop 
+            while 1
+                prevXf = Xf;
+                [T,t] = double(Xf);
+                preXf = polytope(T*Acl,t);
+                Xf = intersect(Xf, preXf);
+                if isequal(prevXf, Xf)
+                    break
+                end
             end
-%             con = con + (Xf.A*X(:,N) <= Xf.b);
-            obj = obj + (X(:,N)-x_ref)'*Qf*(X(:,N)-x_ref);
-%             %Plot terminal set
-%             figure;
-%             Xf.projection(1:2).plot();
-%             title('Terminal set of Controller X projected onto (1,2)')
+           [Ff,ff] = double(Xf);
+           
+           for i = 1:N-1
+              con = con + ( X(:,i+1) == A*X(:,i) + B*U(:,i) );
+              con = con + ( F*X(:,i) <= f) + (M*U(:,i) <= m );
+              obj = obj + (X(:,i)-x_ref )'*Q*(X(:,i)-x_ref )+ (U(:,i)-u_ref)'*R*(U(:,i)-u_ref) ;
+           end
+      
+           obj = obj + (X(:,N)-x_ref)'*Qf*(X(:,N)-x_ref);
 
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
@@ -127,17 +131,26 @@ classdef MpcControl_z < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            A = mpc.A; B = mpc.B; C = mpc.C; D = mpc.D;
-            u = 56.6667;
-            umax = 80 - u;
-            umin = 50 - u;
-            xmax = [inf; inf];
-            F = [eye(nx); -eye(nx)];
-            f = [xmax; xmax];
-            M = [1; -1];
-            m = [umax; -umin];
-            con = [xs == A*xs + B*us, ref == C*xs + D*us, F*xs <= f, M*us <= m];
+            obj = 0;
+            con = [xs == 0, us == 0];
+            
+            uss=56.67;
+            % u in U = { u | Mu <= m }
+            M = [1;-1]; m = [80-uss; -50+uss];
+            
+            % x in X = { x | Fx <= f }
+            F = [ eye(2); -eye(2)]; 
+            f = [inf; inf; inf; inf];
+            
+            % System dynamics 
+            A = mpc.A; 
+            B = mpc.B;
+            C = mpc.C;
+            D = mpc.D;
+            
+            con = [ xs == A*xs + B*us , ref == C*xs, F*xs <= f , M*us <= m] ;
             obj = us'*us;  
+
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

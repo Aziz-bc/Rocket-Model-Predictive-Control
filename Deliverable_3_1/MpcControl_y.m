@@ -32,10 +32,10 @@ classdef MpcControl_y < MpcControlBase
             con = [];
             
             % u in U = { u | Mu <= m }
-            M = [1;-1]; m = [0.26; 0.26];
+            M = [1;-1]; m = [deg2rad(15); deg2rad(15)];
             % x in X = { x | Fx <= f }
-            F = [1 0 0 0; 0 1 0 0; 0 0 1 0; 0 0 0 1; -1 0 0 0; 0 -1 0 0; 0 0 -1 0; 0 0 0 -1];
-            f = [inf; 0.1222; inf; inf; inf; 0.1222; inf; inf]; 
+            F = [eye(4); -eye(4)];
+            f = [inf; deg2rad(7); inf; inf; inf; deg2rad(7); inf; inf]; 
             
             % System dynamics 
             A = mpc.A; 

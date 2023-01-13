@@ -44,7 +44,7 @@ ph = rocket.plotvis_sub(T_opt, X_opt, U_opt, sys_y, xs, us, y_ref); % Plot as us
 sgtitle("MPC controller for Y open-loop");
 
 % Closed loop
-[T, X_sub, U_sub] = rocket.simulate_f(sys_y, y0, Tf, @mpc_x.get_u, y_ref);
+[T, X_sub, U_sub] = rocket.simulate_f(sys_y, y0, Tf, @mpc_y.get_u, y_ref);
 ph = rocket.plotvis_sub(T, X_sub, U_sub, sys_y, xs, us, y_ref);
 sgtitle("MPC controller for Y closed-loop");
 %% MPC controller for z
