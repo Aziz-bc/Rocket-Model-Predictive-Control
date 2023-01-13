@@ -53,8 +53,8 @@ classdef NmpcControl < handle
             Ts = rocket.Ts;
             A = sys_lin_dis.A;
             B = sys_lin_dis.B;
-            Q = diag([0 0 0 0 0 100 0 0 0 100 100 120]);
-            R = diag([0.1 0.1 0.2 0.1]);
+            Q = diag([0 0 0 0 0 100 0 0 0 100 100 10]);
+            R = diag([0.1 0.1 0.1 0.1]);
             [~, Qf, ~] = dlqr(A,B,Q,R);
             cost = 0;
             eq_constr = [ ; ];

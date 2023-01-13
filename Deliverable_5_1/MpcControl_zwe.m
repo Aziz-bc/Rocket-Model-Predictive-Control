@@ -51,8 +51,8 @@ classdef MpcControl_zwe < MpcControlBase
             A = mpc.A;
             B = mpc.B;
             sys = LTISystem('A',A,'B',B);
-            Q = diag([35,100]);
-            R = eye(nu)*0.001;
+            Q = diag([10,1000]);
+            R = eye(nu)*2;
             us = 56.6667;
             % u* = u - us
             umax = 80 - us;
@@ -77,14 +77,14 @@ classdef MpcControl_zwe < MpcControlBase
             M = [eye(nu);-eye(nu)]; m = [umax; -umin];
             % x in X = { x | Fx <= f }
 %             F = [eye(nx); -eye(nx)]; f = [xmax;-xmin];
-            S = eye(nx)*5;
+            S = eye(nx)*2;
+
             con = (X(:,2) == A*(X(:,1)) + B*(U(:,1))+B*d_est) + (M*U(:,1) <= m);
             obj = (X(:,1)-x_ref)'*Q*(X(:,1)-x_ref)+(U(:,1)-u_ref)'*R*(U(:,1)-u_ref);
             for i = 2:N-1
-                F = [eye(nx); -eye(nx)]; f = [xmax;xmax]+[epsi(:,i);epsi(:,i)];
-                con = con + (X(:,i+1) == A*(X(:,i)) + B*(U(:,i)));
-                con = con + (F*X(:,i) <= f) + (M*U(:,i) <= m);
-                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref)+ epsi(:,i)'*S*epsi(:,i)+5*norm(epsi(:,i), 1);
+                con = con + (X(:,i+1) == A*(X(:,i)) + B*(U(:,i) +d_est));
+                con = con + (M*U(:,i) <= m);
+                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref) + epsi(:,i)'*S*epsi(:,i)+5*norm(epsi(:,i), 1);
             end
 %             con = con + (Xf.A*X(:,N) <= Xf.b);
             obj = obj + (X(:,N)-x_ref)'*Qf*(X(:,N)-x_ref);
@@ -161,12 +161,15 @@ classdef MpcControl_zwe < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            
-            A_bar = [mpc.A, mpc.B; zeros(1,size(mpc.A,2)), 1] ;
-            B_bar = [mpc.B; zeros(1,size(mpc.B,2))] ;
-            C_bar = [mpc.C, zeros(size(mpc.C,1))] ;
+            A=mpc.A;
+            B=mpc.B;
+            C=mpc.C;
 
-            p = [0.1, 0.2, 0.3] ;
+            A_bar = [A, B; zeros(1,size(A,2)), 1] ;
+            B_bar = [B; zeros(1,size(B,2))] ;
+            C_bar = [C, zeros(size(C,1))] ;
+
+            p = [0.1, 0.15, 0.2] ;
             L = - place(A_bar',C_bar',p)' ; 
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
