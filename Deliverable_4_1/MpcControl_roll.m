@@ -41,16 +41,15 @@ classdef MpcControl_roll < MpcControlBase
             C = mpc.C; 
             D = mpc.D;
             
-            % No state constraints
+            % No constraints on x
 
-            % input constraints
+            % constraints on u
             M = [1;-1]; 
             m = [20;20]; 
              
             % Cost matrices 
             Q = diag([80, 6000]); 
             R = 5; 
-
             
             % OBJECTIVE and CONSTRAINTS 
             con = (X(:,2) == A*X(:,1) + B*U(:,1)) + (M*U(:,1) <= m);
@@ -91,27 +90,20 @@ classdef MpcControl_roll < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            obj = 0;
-            con = [xs == 0, us == 0];
-            
             A = mpc.A; 
             B = mpc.B; 
             C = mpc.C; 
             D = mpc.D;
             
-        
-            % No state constraints
 
-
-            % input constraints
+            % constraints on u
             M = [1;-1]; 
             m = [20;20]; 
-
-            % OBJECTIVE and CONSTRAINTS  
+            % No constraints on x
 
             con = [xs == A*xs + B*us, ref == C*xs + D*us,  M*us <= m];
 
-            obj =  us'*us; ;  % Objective    
+            obj =  us'*us;   
   
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE

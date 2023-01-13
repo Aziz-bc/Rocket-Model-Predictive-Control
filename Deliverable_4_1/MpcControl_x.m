@@ -35,12 +35,17 @@ classdef MpcControl_x < MpcControlBase
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
             obj = 0;
             con = [];
+
+            A = mpc.A; 
+            B = mpc.B; 
+            C = mpc.C; 
+            D = mpc.D;
             
-            % state constraints 
+            % constraints on x
             F = [0 1 0 0; 0 -1 0 0]; 
             f = [deg2rad(7);deg2rad(7)];
 
-            % state constraints
+            % constraints on u
             M = [1;-1]; 
             m = [deg2rad(15);deg2rad(15)]; 
             
@@ -48,14 +53,12 @@ classdef MpcControl_x < MpcControlBase
             Q = diag([10,20,20,150]);
             R = 800;
 
-            
              
             % OBJECTIVE and CONSTRAINTS 
-            con = (X(:,2) == mpc.A*X(:,1) + mpc.B*U(:,1)) + (M*U(:,1) <= m);
+            con = (X(:,2) == A*X(:,1) + B*U(:,1)) + (M*U(:,1) <= m);
             obj = U(:,1)'*R*U(:,1);
-
             for i = 2:N-1
-                con = con + (X(:,i+1) == mpc.A*X(:,i) + mpc.B*U(:,i)); 
+                con = con + (X(:,i+1) == A*X(:,i) + B*U(:,i)); 
                 con = con + (M*U(:,i) <= m) + (F*X(:,i) <= f); 
                 obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref);
             end
@@ -67,8 +70,6 @@ classdef MpcControl_x < MpcControlBase
             % Return YALMIP optimizer object
             ctrl_opti = optimizer(con, obj, sdpsettings('solver','gurobi'), ...
                 {X(:,1), x_ref, u_ref}, {U(:,1), X, U});
-%             ctrl_opti = optimizer(con, obj, sdpsettings('solver','gurobi'), ...
-%                 {X(:,1), x_ref, u_ref}, {U(:,1), X, U});
 
         end
         
@@ -107,22 +108,17 @@ classdef MpcControl_x < MpcControlBase
             Q = eye(4);
             R = 1; 
         
-            % state constraints 
+            % constraints on x
             F = [0 1 0 0; 0 -1 0 0]; 
             f = [deg2rad(7);deg2rad(7)];
 
-            % input constraints
+            % constraints on u
             M = [1;-1]; 
             m = [deg2rad(15);deg2rad(15)];
 
-            % OBJECTIVE and CONSTRAINTS  
+            con = (xs == A*xs + B*us)+ (ref == C*xs)+ (M*us <= m)+ (F*xs <= f); 
 
-            con = (xs == A*xs + B*us); 
-            con = con + (ref == C*xs); 
-            con = con + (M*us <= m); 
-            con = con + (F*xs <= f); 
-
-            obj = (  xs'*Q*xs + us'*R*us ) ; % Objective     
+            obj = (xs'*Q*xs + us'*R*us) ;    
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             

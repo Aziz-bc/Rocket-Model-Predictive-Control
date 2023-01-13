@@ -25,7 +25,7 @@ x0 = zeros(12,1);
 
 rocket.mass = 1.794; % Manipulate mass for simulation
 [T, X, U, Ref] = rocket.simulate(x0, Tf, @mpc.get_u, ref);
-[T_we, X_we, U_we, ~, ~] = rocket.simulate_est_z(x0, Tf, @mpc_zwe_merged.get_u, ref, mpc_zwe, sys_z);
+[T_we, X_we, U_we, Ref_we, Z_we] = rocket.simulate_est_z(x0, Tf, @mpc_zwe_merged.get_u, ref, mpc_zwe, sys_z);
 
 %comparaison results
 figure;
@@ -37,7 +37,7 @@ xlabel('T(s)');
 ylabel('Z(m)');
 
 subplot(2,1,2);
-plot(T, X_we(12,:),T, Ref(3,:));
+plot(T_we, X_we(12,:),T, Ref(3,:));
 legend('Offset-free tracking controller','Reference')
 title('Offset-free tracking controller');
 xlabel('T(s)');

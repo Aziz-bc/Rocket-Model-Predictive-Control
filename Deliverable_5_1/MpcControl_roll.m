@@ -33,50 +33,32 @@ classdef MpcControl_roll < MpcControlBase
             %       the DISCRETE-TIME MODEL of your system
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
-            epsi = sdpvar(nx, N-1);
-            A = mpc.A;
-            B = mpc.B;
-            sys = LTISystem('A',A,'B',B);
-            Q = diag([25, 10]);
-            R = eye(nu)*0.001;
-            us = 0;
-            umax = 20 - us;
-            umin = -20 - us;
-            xmax = [inf; inf];
-            xmin = -xmax;
-            sys.x.penalty = QuadFunction(Q); 
-            sys.u.penalty = QuadFunction(R);
-            sys.x.min = xmin; 
-            sys.x.max = xmax;
-            sys.u.min = umin; 
-            sys.u.max = umax;
-%             Xf = sys.LQRSet;
-            Qf = sys.LQRPenalty.weight;
-            % terminal set and cost
-            sys.x.with('terminalPenalty');
-            sys.x.terminalPenalty = QuadFunction(Qf);
-%             sys.x.with('terminalSet');
-%             sys.x.terminalSet = Xf;
-            % Constraints
-            % u in U = { u | Mu <= m }
-            M = [eye(nu);-eye(nu)]; m = [umax; -umin];
-            % x in X = { x | Fx <= f }
-%             F = [eye(nx); -eye(nx)]; f = [xmax;-xmin];
-            S = eye(nx)*5;
-            con = (X(:,2) == A*(X(:,1)) + B*(U(:,1))) + (M*U(:,1) <= m);
-            obj = (U(:,1)-u_ref)'*R*(U(:,1)-u_ref);
+            obj = 0;
+            con = [];
+            
+            A = mpc.A; 
+            B = mpc.B; 
+            C = mpc.C; 
+            D = mpc.D;
+            
+            % No constraints on x
+
+            % constraints on u
+            M = [1;-1]; 
+            m = [20;20]; 
+             
+            % Cost matrices 
+            Q = diag([80, 6000]); 
+            R = 5; 
+            
+            % OBJECTIVE and CONSTRAINTS 
+            con = (X(:,2) == A*X(:,1) + B*U(:,1)) + (M*U(:,1) <= m);
+            obj = U(:,1)'*R*U(:,1);
             for i = 2:N-1
-                F = [eye(nx); -eye(nx)]; f = [xmax;xmax]+[epsi(:,i);epsi(:,i)];
-                con = con + (X(:,i+1) == A*(X(:,i)) + B*(U(:,i)));
-                con = con + (F*X(:,i) <= f) + (M*U(:,i) <= m);
-                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref) + epsi(:,i)'*S*epsi(:,i)+5*norm(epsi(:,i), 1);
+                con = con + (X(:,i+1) == A*X(:,i) + B*U(:,i));
+                con = con + (M*U(:,i) <= m); %  
+                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref);
             end
-%             con = con + (Xf.A*X(:,N) <= Xf.b);
-            obj = obj + (X(:,N)-x_ref)'*Qf*(X(:,N)-x_ref);
-%             %Plot terminal set
-%             figure;
-%             Xf.projection(1:2).plot();
-%             title('Terminal set of Controller X projected onto (1,2)')
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -108,17 +90,20 @@ classdef MpcControl_roll < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            A = mpc.A; B = mpc.B; C = mpc.C; D = mpc.D;
-            u = 0;
-            umax = 20 - u;
-            umin = -20 - u;
-            xmax = [inf; inf];
-            F = [eye(nx); -eye(nx)];
-            f = [xmax; xmax];
-            M = [1; -1];
-            m = [umax; -umin];
-            con = [xs == A*xs + B*us, ref == C*xs + D*us, F*xs <= f, M*us <= m];
-            obj = us'*us;  
+            A = mpc.A; 
+            B = mpc.B; 
+            C = mpc.C; 
+            D = mpc.D;
+            
+
+            % constraints on u
+            M = [1;-1]; 
+            m = [20;20]; 
+            % No constraints on x
+
+            con = [xs == A*xs + B*us, ref == C*xs + D*us,  M*us <= m];
+
+            obj =  us'*us;   
   
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE

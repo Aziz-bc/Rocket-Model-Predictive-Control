@@ -47,53 +47,32 @@ classdef MpcControl_z < MpcControlBase
             %       the DISCRETE-TIME MODEL of your system
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
-            epsi = sdpvar(nx, N-1);            
-            A = mpc.A;
-            B = mpc.B;
-            sys = LTISystem('A',A,'B',B);
-            Q = diag([10,1000]);
-            R = eye(nu)*2;
-            us = 56.6667;
-            % u* = u - us
-            umax = 80 - us;
-            umin = 50 - us;
-            xmax = [inf; inf];
-            xmin = -xmax;
-            sys.x.penalty = QuadFunction(Q); 
-            sys.u.penalty = QuadFunction(R);
-            sys.x.min = xmin; 
-            sys.x.max = xmax;
-            sys.u.min = umin; 
-            sys.u.max = umax;
-%             Xf = sys.LQRSet;
-            Qf = sys.LQRPenalty.weight;
-            % terminal set and cost
-            sys.x.with('terminalPenalty');
-            sys.x.terminalPenalty = QuadFunction(Qf);
-%             sys.x.with('terminalSet');
-%             sys.x.terminalSet = Xf;
-            % Constraints
-            % u in U = { u | Mu <= m }
-            M = [eye(nu);-eye(nu)]; m = [umax; -umin];
-            % x in X = { x | Fx <= f }
-%             F = [eye(nx); -eye(nx)]; f = [xmax;-xmin];
-            S = eye(nx)*5;
-            con = (X(:,2) == A*(X(:,1)) + B*(U(:,1))) + (M*U(:,1) <= m);
-            obj = (U(:,1)-u_ref)'*R*(U(:,1)-u_ref);
-            for i = 2:N-1
-                F = [eye(nx); -eye(nx)]; f = [xmax;xmax]+[epsi(:,i);epsi(:,i)];
-                con = con + (X(:,i+1) == A*(X(:,i)) + B*(U(:,i)));
-                con = con + (F*X(:,i) <= f) + (M*U(:,i) <= m);
-                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref) + epsi(:,i)'*S*epsi(:,i)+5*norm(epsi(:,i), 1);
-            end
-%             con = con + (Xf.A*X(:,N) <= Xf.b);
-            obj = obj + (X(:,N)-x_ref)'*Qf*(X(:,N)-x_ref);
-%             %Plot terminal set
-%             figure;
-%             Xf.projection(1:2).plot();
-%             title('Terminal set of Controller X projected onto (1,2)')
-
+            % Compute LQR controller for unconstrained system
+            obj = 0;
+            con = [];
             
+            A = mpc.A; 
+            B = mpc.B; 
+            C = mpc.C; 
+            D = mpc.D;
+
+            % No constraints on x
+            % constraints on u
+            M = [1;-1]; 
+            m = [80-56.6667;-50+56.6667]; 
+
+            % Cost matrices
+            Q = diag([40,120]);
+            R = 0.001*eye(nu); 
+            
+            % OBJECTIVE and CONSTRAINTS
+            con = (X(:,2) == A*X(:,1) + B*U(:,1)) + (M*U(:,1) <= m) ;
+            obj = U(:,1)'*R*U(:,1) ;
+            for i = 2:N-1
+                con = con + (X(:,i+1) == A*X(:,i) + B*U(:,i)) ;
+                con = con + (M*U(:,i) <= m) ; 
+                obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref) ;
+            end
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
@@ -130,17 +109,19 @@ classdef MpcControl_z < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            A = mpc.A; B = mpc.B; C = mpc.C; D = mpc.D;
-            u = 56.6667;
-            umax = 80 - u;
-            umin = 50 - u;
-            xmax = [inf; inf];
-            F = [eye(nx); -eye(nx)];
-            f = [xmax; xmax];
-            M = [1; -1];
-            m = [umax; -umin];
-            con = [xs == A*xs + B*us, ref == C*xs + D*us, F*xs <= f, M*us <= m];
-            obj = us'*us;  
+            A = mpc.A; 
+            B = mpc.B; 
+            C = mpc.C; 
+            D = mpc.D;
+       
+            % constraints on u
+            M = [1;-1]; 
+            m = [80-56.6667;-50+56.6667]; 
+            % No constraints on x
+
+            con = [xs == A*xs + B*us, ref == C*xs + D*us, M*us <= m];
+
+            obj =  us'*us; 
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

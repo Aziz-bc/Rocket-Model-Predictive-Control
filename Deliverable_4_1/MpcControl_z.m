@@ -55,28 +55,24 @@ classdef MpcControl_z < MpcControlBase
             B = mpc.B; 
             C = mpc.C; 
             D = mpc.D;
-            
-            % input constraints 
+
+            % No constraints on x
+            % constraints on u
             M = [1;-1]; 
             m = [80-56.6667;-50+56.6667]; 
-            
-            % Cost matrices 
-            Q = diag([40,120]); % weight on state vz, z
-            R = eye(nu)*0.001; % weight on input P_avg
-         
-            % No state constraints
 
+            % Cost matrices
+            Q = diag([40,120]);
+            R = 0.001*eye(nu); 
             
             % OBJECTIVE and CONSTRAINTS
             con = (X(:,2) == A*X(:,1) + B*U(:,1)) + (M*U(:,1) <= m) ;
             obj = U(:,1)'*R*U(:,1) ;
             for i = 2:N-1
                 con = con + (X(:,i+1) == A*X(:,i) + B*U(:,i)) ;
-                con = con + (M*U(:,i) <= m) ; %  
+                con = con + (M*U(:,i) <= m) ; 
                 obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref) ;
             end
-
-            
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
@@ -113,27 +109,19 @@ classdef MpcControl_z < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            obj = 0;
-            con = [xs == 0, us == 0];
-            
             A = mpc.A; 
             B = mpc.B; 
             C = mpc.C; 
             D = mpc.D;
-            
-        
-            % No state constraints
-
-            % input constraints 
-            uss=56.6667;
+       
+            % constraints on u
             M = [1;-1]; 
-            m = [80-uss;-50+uss]; 
+            m = [80-56.6667;-50+56.6667]; 
+            % No constraints on x
 
-            % OBJECTIVE and CONSTRAINTS  
+            con = [xs == A*xs + B*us, ref == C*xs + D*us, M*us <= m];
 
-            con = [ xs == A*xs + B*us , ref == C*xs , M*us <= m];
-            
-            obj =  us'*us;  ; 
+            obj =  us'*us; 
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
