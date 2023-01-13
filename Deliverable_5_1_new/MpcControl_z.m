@@ -59,13 +59,14 @@ classdef MpcControl_z < MpcControlBase
             % input constraints 
             M = [1;-1]; 
             m = [80-56.6667;-50+56.6667]; 
-            
             % Cost matrices 
-            Q = diag([40,120]); % weight on state vz, z
-            R = eye(nu)*0.001; % weight on input P_avg
+            %Q = diag([40,500]); % weight on state vz, z
+            
+
+            Q = diag([40,120]);
+            R = 0.001*eye(nu); % weight on input P_avgg
          
             % No state constraints
-
             
             % OBJECTIVE and CONSTRAINTS
             con = (X(:,2) == A*X(:,1) + B*U(:,1)) + (M*U(:,1) <= m) ;

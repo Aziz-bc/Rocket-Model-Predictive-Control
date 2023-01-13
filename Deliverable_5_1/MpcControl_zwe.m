@@ -130,17 +130,20 @@ classdef MpcControl_zwe < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            A = mpc.A; B = mpc.B; C = mpc.C; D = mpc.D;
-            u = 56.6667;
-            umax = 80 - u;
-            umin = 50 - u;
-            xmax = [inf; inf];
-            F = [eye(nx); -eye(nx)];
-            f = [xmax; xmax];
-            M = [1; -1];
-            m = [umax; -umin];
-            con = [xs == A*xs + B*us+ mpc.B*d_est, ref == C*xs + D*us, F*xs <= f, M*us <= m];
-            obj = us'*us;  
+            A = mpc.A; 
+            B = mpc.B; 
+            C = mpc.C; 
+            D = mpc.D;
+       
+            % constraints for u
+            M = [1;-1]; 
+            m = [80-56.6667;-50+56.6667]; 
+            % No constraints for x
+
+            con = [xs == A*xs + B*us, ref == C*xs + D*us, M*us <= m];
+
+            obj =  us'*us;
+
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

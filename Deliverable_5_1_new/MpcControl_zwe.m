@@ -59,13 +59,11 @@ classdef MpcControl_zwe < MpcControlBase
             % input constraints 
             M = [1;-1]; 
             m = [80-56.6667;-50+56.6667]; 
-            
-            % Cost matrices 
-            Q = diag([40,120]); % weight on state vz, z
-            R = eye(nu)*0.001; % weight on input P_avg
-         
-            % No state constraints
 
+            % Cost matrices
+            Q = diag([40,120]);
+            R = 0.0001*eye(nu); % weight on input P_avg
+            % No state constraints
             
             % OBJECTIVE and CONSTRAINTS
             con = (X(:,2) == A*X(:,1) + B*U(:,1)+B*d_est) + (M*U(:,1) <= m) ;
@@ -75,6 +73,7 @@ classdef MpcControl_zwe < MpcControlBase
                 con = con + (M*U(:,i) <= m) ; %  
                 obj = obj + (X(:,i)-x_ref)'*Q*(X(:,i)-x_ref) + (U(:,i)-u_ref)'*R*(U(:,i)-u_ref) ;
             end
+
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -112,27 +111,20 @@ classdef MpcControl_zwe < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             % You can use the matrices mpc.A, mpc.B, mpc.C and mpc.D
-            obj = 0;
-            con = [xs == 0, us == 0];
-            
             A = mpc.A; 
             B = mpc.B; 
             C = mpc.C; 
             D = mpc.D;
-            
-        
-            % No state constraints
-
-            % input constraints 
-            uss=56.6667;
+       
+            % constraints for u
             M = [1;-1]; 
-            m = [80-uss;-50+uss]; 
+            m = [80-56.6667;-50+56.6667]; 
+            % No constraints for x
 
-            % OBJECTIVE and CONSTRAINTS  
+            con = [xs == A*xs + B*us+B*d_est, ref == C*xs + D*us, M*us <= m];
 
-            con = [ xs == A*xs + B*us +B*d_est , ref == C*xs , M*us <= m];
-            
-            obj =  us'*us;  ; 
+            obj =  us'*us;
+ 
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
