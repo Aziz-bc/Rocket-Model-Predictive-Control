@@ -43,72 +43,44 @@ classdef NmpcControl < handle
             
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
+            f = @(x,u) rocket.f(x,u);
+            x_ref =  [0;0;0;0;0;ref_sym(4,1);0;0;0;ref_sym(1); ref_sym(2); ref_sym(3)];
             
-            % Cost
-            cost = 0;
             
-            % Equality constraints (Casadi SX), each entry == 0
-            eq_constr = [ ; ];
-            
-            % Inequality constraints (Casadi SX), each entry <= 0
-            ineq_constr = [ ; ];
-
-            % For box constraints on state and input, overwrite entries of
-            % lbx, ubx, lbu, ubu defined above 
-            
-            % Sampling time
-            Ts = rocket.Ts;
-            
-            % Angle constraint (Beta < 80 degrees)
-            ineq_constr = [ineq_constr;X_sym(5,:)-deg2rad(80)];
-            ineq_constr = [ineq_constr;-X_sym(5,:)-deg2rad(80)];
-            
-            % Input constraints
-            ineq_constr = [ineq_constr; U_sym(1,:)-0.26]; 
-            ineq_constr = [ineq_constr; -U_sym(1,:)-0.26];
-            ineq_constr = [ineq_constr; U_sym(2,:)-0.26]; 
-            ineq_constr = [ineq_constr; -U_sym(2,:)-0.26];
-            ineq_constr = [ineq_constr; U_sym(3,:)-80]; 
-            ineq_constr = [ineq_constr; -U_sym(3,:)-50];
-            ineq_constr = [ineq_constr; U_sym(4,:)-20]; 
-            ineq_constr = [ineq_constr; -U_sym(4,:)-(-20)];
-            
-            % Initial condition
-            eq_constr = [eq_constr;X_sym(:,1) - x0_sym];
-            
-            % Target
-            eq_constr = [eq_constr; ref_sym(1)-X_ref(10)];
-            eq_constr = [eq_constr; ref_sym(2)-X_ref(11)];
-            eq_constr = [eq_constr; ref_sym(3)-X_ref(12)];
-            eq_constr = [eq_constr; ref_sym(4)-X_ref(6)];
-            
-            % Cost
-            Q = diag([0 0 0 0 0 0.3 0 0 0 1 1 1]);
-            R = 0.001*eye(4);
-            
-            L = @(x,u) (x-X_ref)'*Q*(x-X_ref)+(u-us)'*R*(u-us); % cost
-            
-            %Terminal cost
             [xs, us] = rocket.trim();
-            sys_s = rocket.linearize(xs, us); 
-            sys_sd = c2d(sys_s, rocket.Ts); 
-            A_sd = sys_sd.A;
-            B_sd = sys_sd.B;
-            [K, Qf, ~] = dlqr(A_sd,B_sd,Q,R);
-            for k=1:N-1 
-                % Compute cost
-                cost = cost + L(X_sym(:,k), U_sym(:,k));
-                
-                % RK4 integration
+            sys_lin = rocket.linearize(xs, us); % continuous
+            sys_lin_dis = c2d(sys_lin, rocket.Ts); % discrete
+            Ts = rocket.Ts;
+            A = sys_lin_dis.A;
+            B = sys_lin_dis.B;
+            Q = diag([0 0 0 0 0 100 0 0 0 100 100 10]);
+            R = diag([0.1 0.1 0.1 0.1]);
+            [~, Qf, ~] = dlqr(A,B,Q,R);
+            cost = 0;
+            eq_constr = [ ; ];
+            ineq_constr = [ ; ];
+            for k=1:N-1
+                cost = cost + (X_sym(:,k) - x_ref)'*Q*(X_sym(:,k) - x_ref) + U_sym(:,k)'*R*U_sym(:,k);
                 k1 = f(X_sym(:,k),U_sym(:,k));
-                k2 = f(X_sym(:,k)+ Ts/2*k1, U_sym(:,k));
-                k3 = f(X_sym(:,k)+Ts/2*k2,U_sym(:,k));
-                k4 = f(X_sym(:,k)+Ts*k3,U_sym(:,k));
+                k2 = f(X_sym(:,k) + Ts/2*k1, U_sym(:,k));
+                k3 = f(X_sym(:,k) + Ts/2*k2, U_sym(:,k));
+                k4 = f(X_sym(:,k) + Ts*k3,   U_sym(:,k));
                 
-                % Update state
-                X_sym(:,k+1) = X_sym(:,k) + Ts/6*(k1+2*k2+2*k3+k4);
+                eq_constr = [eq_constr;X_sym(:,k+1)- (X_sym(:,k) + Ts/6*(k1 + 2*k2 + 2*k3 + k4))];
+                ineq_constr = [ineq_constr; - X_sym(5,k)-deg2rad(80) ];
+                ineq_constr = [ineq_constr; X_sym(5,k)-deg2rad(80) ];
+                ineq_constr = [ineq_constr; U_sym(1,k)-deg2rad(15) ];
+                ineq_constr = [ineq_constr; -U_sym(1,k)-deg2rad(15) ];
+                ineq_constr = [ineq_constr; - U_sym(2,k)-deg2rad(15) ];
+                ineq_constr = [ineq_constr;  U_sym(2,k)-deg2rad(15) ];
+                ineq_constr = [ineq_constr;  U_sym(3,k)-80];
+                ineq_constr = [ineq_constr; -U_sym(3,k)+20];
+                ineq_constr = [ineq_constr; - U_sym(4,k)-20 ];
+                ineq_constr = [ineq_constr; U_sym(4,k)-20 ];
+
             end
-            cost = cost + L(X_sym(:,N), 0);
+            eq_constr = [eq_constr; X_sym(:,1) - x0_sym];
+            cost = cost + (X_sym(:,N) - x_ref)'*Qf*(X_sym(:,N) - x_ref);
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             

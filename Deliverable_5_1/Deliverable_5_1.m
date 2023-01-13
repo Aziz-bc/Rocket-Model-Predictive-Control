@@ -1,20 +1,21 @@
-%% TODO: This file should produce all the plots for the deliverable
-Ts = 1/20; % Sample time [s]
+Ts = 1/20; 
 rocket = Rocket(Ts);
+H = 6;
 [xs, us] = rocket.trim();
 sys = rocket.linearize(xs, us);
 [sys_x, sys_y, sys_z, sys_roll] = rocket.decompose(sys, xs, us);
 
-% Design MPC controllers for each subsystem
-H = 10; % Horizon length [s]
 mpc_x = MpcControl_x(sys_x, Ts, H);
 mpc_y = MpcControl_y(sys_y, Ts, H);
 mpc_z = MpcControl_z(sys_z, Ts, H);
 mpc_zwe = MpcControl_zwe(sys_z, Ts, H);
 mpc_roll = MpcControl_roll(sys_roll, Ts, H);
 
-% Merge four sub−system controllers into one full−system controller
+% To assess the influence of offset-free tracking we compare
+% the offset-free tracking controller with the original controller
+%original controller
 mpc = rocket.merge_lin_controllers(xs, us, mpc_x, mpc_y, mpc_z, mpc_roll);
+%offset-free tracking controller
 mpc_zwe_merged = rocket.merge_lin_controllers(xs, us, mpc_x, mpc_y, mpc_zwe, mpc_roll);
 
 % Setup reference function
@@ -24,13 +25,29 @@ x0 = zeros(12,1);
 
 rocket.mass = 1.794; % Manipulate mass for simulation
 [T, X, U, Ref] = rocket.simulate(x0, Tf, @mpc.get_u, ref);
-[~, X_we, ~, ~, ~] = rocket.simulate_est_z(x0, Tf, @mpc_zwe_merged.get_u, ref, mpc_zw, sys_z);
+[T_we, X_we, U_we, ~, ~] = rocket.simulate_est_z(x0, Tf, @mpc_zwe_merged.get_u, ref, mpc_zwe, sys_z);
 
+%comparaison results
 figure;
-plot(T, Ref(3,:),T, X(12,:),T,X_we(12,:));
-title('Offset-Free Tracking');
-legend('Reference','Original Controller','Offset-Free Tracking');
-xlabel('Time [s]');
-ylabel('z [m]');
+subplot(2,1,1);
+plot(T, X(12,:),T, Ref(3,:));
+legend('Original controller','Reference')
+title('Original controller');
+xlabel('T(s)');
+ylabel('Z(m)');
+
+subplot(2,1,2);
+plot(T, X_we(12,:),T, Ref(3,:));
+legend('Offset-free tracking controller','Reference')
+title('Offset-free tracking controller');
+xlabel('T(s)');
+ylabel('Zwe(m)');
+
+%simulation plots
+rocket.anim_rate = 3;
+ph_we = rocket.plotvis(T_we, X_we, U_we, Ref);
+ph = rocket.plotvis(T, X, U, Ref);
+
+
 
 
