@@ -44,7 +44,7 @@ classdef MpcControl_roll < MpcControlBase
             D = mpc.D;
             
             % Cost matrices
-            Q = diag([1 100]);
+            Q = diag([10 80]);
             R = 1;
             
             % LQR controller for unconstrained system

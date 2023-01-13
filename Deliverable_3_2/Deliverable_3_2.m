@@ -48,7 +48,7 @@ sgtitle("MPC controller for Y open-loop");
 ph = rocket.plotvis_sub(T, X_sub, U_sub, sys_y, xs, us, y_ref);
 sgtitle("MPC controller for Y closed-loop");
 %% MPC controller for z
-H = 2;          % Horizon length in seconds
+H = 3;          % Horizon length in seconds
 mpc_z = MpcControl_z(sys_z, Ts, H);
 
 % Initial Position x
@@ -67,7 +67,7 @@ sgtitle("MPC controller for Z open-loop");
 ph = rocket.plotvis_sub(T, X_sub, U_sub, sys_z, xs, us, z_ref);
 sgtitle("MPC controller for Z closed-loop");
 %% MPC controller for roll
-H = 0.2;          % Horizon length in seconds
+H = 1;          % Horizon length in seconds
 mpc_roll = MpcControl_roll(sys_roll, Ts, H);
 
 % Initial angle 

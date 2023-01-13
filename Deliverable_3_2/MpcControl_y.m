@@ -51,8 +51,9 @@ classdef MpcControl_y < MpcControlBase
             D = mpc.D;
             
             % Cost matrices 
-            Q = diag ([1 5 1 1]);
-            R = 1;
+            Q = diag ([1 10 1 1]);
+            R = 10;
+            
             % LQR controller for unconstrained system
             [K, Qf, ~] = dlqr(A,B,Q,R);
             K = -K;      % MATLAB defines K as -K 
