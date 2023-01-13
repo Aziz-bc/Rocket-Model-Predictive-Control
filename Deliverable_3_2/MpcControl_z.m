@@ -50,7 +50,7 @@ classdef MpcControl_z < MpcControlBase
             obj = 0;
             con = [];
             
-            us=56.67;
+            us=56.666;
             % u in U = { u | Mu <= m }
             M = [1;-1]; m = [80-us; -50+us];
             
@@ -70,21 +70,21 @@ classdef MpcControl_z < MpcControlBase
 
             % LQR controller for unconstrained system
             [K, Qf, ~] = dlqr(A,B,Q,R);
-            K = -K;      % MATLAB defines K as -K 
-
-            % Compute the maximal invariant set 
-            Xf = polytope([F;M*K],[f;m]);
-            Acl = [A+B*K];      % Closed loop 
-            while 1
-                prevXf = Xf;
-                [T,t] = double(Xf);
-                preXf = polytope(T*Acl,t);
-                Xf = intersect(Xf, preXf);
-                if isequal(prevXf, Xf)
-                    break
-                end
-            end
-           [Ff,ff] = double(Xf);
+%             K = -K;      % MATLAB defines K as -K 
+% 
+%             % Compute the maximal invariant set 
+%             Xf = polytope([F;M*K],[f;m]);
+%             Acl = [A+B*K];      % Closed loop 
+%             while 1
+%                 prevXf = Xf;
+%                 [T,t] = double(Xf);
+%                 preXf = polytope(T*Acl,t);
+%                 Xf = intersect(Xf, preXf);
+%                 if isequal(prevXf, Xf)
+%                     break
+%                 end
+%             end
+%            [Ff,ff] = double(Xf);
            
            for i = 1:N-1
               con = con + ( X(:,i+1) == A*X(:,i) + B*U(:,i) );

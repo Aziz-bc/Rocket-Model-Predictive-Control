@@ -125,7 +125,7 @@ classdef MpcControl_z < MpcControlBase
             % No state constraints
 
             % input constraints 
-            uss=56.6667
+            uss=56.6667;
             M = [1;-1]; 
             m = [80-uss;-50+uss]; 
 

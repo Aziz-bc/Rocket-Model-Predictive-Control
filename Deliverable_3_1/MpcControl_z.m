@@ -45,7 +45,7 @@ classdef MpcControl_z < MpcControlBase
             obj = 0;
             con = [];
             
-            us=56.67;
+            us=56.666;
             % u in U = { u | Mu <= m }
             M = [1;-1]; m = [80-us; -50+us];
             
@@ -92,7 +92,7 @@ classdef MpcControl_z < MpcControlBase
           
            for i = 1:N-1
               con = con + ( X(:,i+1) == A*X(:,i) + B*U(:,i) );
-              con = con + ( F*X(:,i) <= f) + (M*U(:,i) <= m );
+              con = con + (M*U(:,i) <= m );
               obj = obj + X(:,i)'*Q*X(:,i) + U(:,i)'*R*U(:,i) ;
            end
       
